@@ -1,0 +1,44 @@
+//TestPopulateCEPName
+global class PopulateCEPName implements schedulable,Database.Batchable<SObject>, Database.AllowsCallouts {
+    
+    public Database.QueryLocator start(Database.BatchableContext BC) 
+    {        
+        // Query 
+        if(Test.isRunningTest()) {
+            return Database.getQueryLocator(
+                [select id,name,CEP_Group__c,gfsurveys__Phone_Number__c
+                 from gfsurveys__Mobile_Money_Collection__c where  CEP_Group__c =null limit 1
+                ]); 
+        }          
+        else{
+            return Database.getQueryLocator(
+                [select id,name,CEP_Group__c,gfsurveys__Phone_Number__c
+                 from gfsurveys__Mobile_Money_Collection__c where  CEP_Group__c =null limit 9000
+                ]); 
+        }
+    }
+    
+    public void execute(Database.BatchableContext BC, List<gfsurveys__Mobile_Money_Collection__c> scope)
+    {
+        List<gfsurveys__Mobile_Money_Collection__c> mmList = new List<gfsurveys__Mobile_Money_Collection__c>();
+        for(gfsurveys__Mobile_Money_Collection__c mm:scope){
+            
+            if (mm.gfsurveys__Phone_Number__c !=null) {
+                List<Account> ac = [select id, name,Phone_with_Code__c from Account where Phone_with_Code__c=:mm.gfsurveys__Phone_Number__c ];
+                mm.CEP_Group__c = ac[0].id;
+                mmList.add(mm);
+            }
+            
+        }
+        if (mmList.size()>0) {
+            database.update(mmList);
+        }
+        
+    }
+    
+    public void finish(Database.BatchableContext info) {}
+    
+    global void execute(SchedulableContext sc) {
+        Database.executeBatch(new PopulateCEPName(),150);
+    }    
+}
